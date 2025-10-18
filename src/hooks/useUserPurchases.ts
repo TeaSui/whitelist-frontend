@@ -28,6 +28,6 @@ export const useUserPurchases = (address?: string) => {
     },
     enabled: !!address,
     staleTime: 60 * 1000, // 1 minute
-    cacheTime: 10 * 60 * 1000, // 10 minutes (longer cache for historical data)
+    gcTime: 10 * 60 * 1000, // 10 minutes (longer cache for historical data)
   });
 };

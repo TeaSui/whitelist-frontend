@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { usePublicClient } from 'wagmi';
-import { createWhitelistSaleContract, createWhitelistTokenContract, SaleInfo } from '@/utils/contracts';
+import { createWhitelistSaleContract, createWhitelistTokenContract, SaleInfo, CONTRACT_ADDRESSES } from '@/utils/contracts';
 import { getSaleInfo } from '@/lib/api';
 
 export const useSaleInfo = () => {
@@ -9,96 +9,77 @@ export const useSaleInfo = () => {
   return useQuery<SaleInfo | null>({
     queryKey: ['saleInfo'],
     queryFn: async (): Promise<SaleInfo | null> => {
+      // Skip API and use contract directly since API is not available
+      console.log('Using contract data directly...');
+        
+      // Use direct contract calls
+      if (!publicClient) {
+        throw new Error('No blockchain connection available');
+      }
+
       try {
-        // Try backend API first
-        console.log('Fetching sale info from backend API...');
-        const apiResponse = await getSaleInfo();
+        const saleContract = createWhitelistSaleContract(publicClient);
         
-        return {
-          tokenAddress: apiResponse.tokenAddress,
-          treasury: apiResponse.treasury,
-          tokenPrice: apiResponse.tokenPrice,
-          minPurchase: apiResponse.minPurchase,
-          maxPurchase: apiResponse.maxPurchase,
-          maxSupply: apiResponse.maxSupply,
-          startTime: apiResponse.startTime,
-          endTime: apiResponse.endTime,
-          isPaused: apiResponse.isPaused,
-          isActive: apiResponse.isActive,
-          totalSold: apiResponse.totalSold,
-          claimEnabled: apiResponse.claimEnabled,
-          claimStartTime: apiResponse.claimStartTime,
+        // Call all contract methods in parallel for better performance
+        const [
+          tokenAddress,
+          treasury,
+          saleConfigData,
+          totalSold,
+          totalEthRaised,
+          isPaused,
+          isSaleActive,
+          claimEnabled,
+          claimStartTime,
+        ] = await Promise.all([
+          saleContract.read.token(),
+          saleContract.read.treasury(),
+          saleContract.read.saleConfig(),
+          saleContract.read.totalSold(),
+          saleContract.read.totalEthRaised(),
+          saleContract.read.paused(),
+          saleContract.read.isSaleActive(),
+          saleContract.read.claimEnabled(),
+          saleContract.read.claimStartTime(),
+        ]);
+
+        const result = {
+          contractAddress: CONTRACT_ADDRESSES.WHITELIST_SALE,
+          tokenAddress: tokenAddress as string,
+          treasury: treasury as string,
+          saleConfig: {
+            tokenPrice: (saleConfigData as any)[0] as bigint,
+            minPurchase: (saleConfigData as any)[1] as bigint,
+            maxPurchase: (saleConfigData as any)[2] as bigint,
+            maxSupply: (saleConfigData as any)[3] as bigint,
+            startTime: (saleConfigData as any)[4] as bigint,
+            endTime: (saleConfigData as any)[5] as bigint,
+            whitelistRequired: (saleConfigData as any)[6] as boolean,
+          },
+          totalSold: totalSold as bigint,
+          totalEthRaised: totalEthRaised as bigint,
+          isPaused: isPaused as boolean,
+          isSaleActive: isSaleActive as boolean,
+          claimEnabled: claimEnabled as boolean,
+          claimStartTime: claimStartTime as bigint,
         };
-      } catch (apiError) {
-        console.warn('Backend API failed, falling back to contract:', apiError);
-        
-        // Fallback to direct contract calls
-        if (!publicClient) {
-          throw new Error('No backend API and no blockchain connection available');
-        }
 
-        try {
-          const saleContract = createWhitelistSaleContract(publicClient);
-          const tokenContract = createWhitelistTokenContract(publicClient);
-          
-          // Call all contract methods in parallel for better performance
-          const [
-            tokenAddress,
-            treasury,
-            tokenPrice,
-            minPurchase,
-            maxPurchase,
-            maxSupply,
-            startTime,
-            endTime,
-            isPaused,
-            isActive,
-            claimEnabled,
-            claimStartTime,
-            tokenTotalSupply
-          ] = await Promise.all([
-            saleContract.read.token(),
-            saleContract.read.treasury(),
-            saleContract.read.tokenPrice(),
-            saleContract.read.minPurchase(),
-            saleContract.read.maxPurchase(),
-            saleContract.read.maxSupply(),
-            saleContract.read.startTime(),
-            saleContract.read.endTime(),
-            saleContract.read.paused(),
-            saleContract.read.isActive(),
-            saleContract.read.claimEnabled(),
-            saleContract.read.claimStartTime(),
-            tokenContract.read.totalSupply()
-          ]);
+        console.log('🔍 Contract Sale Info:', {
+          isSaleActive: result.isSaleActive,
+          isPaused: result.isPaused,
+          startTime: result.saleConfig.startTime.toString(),
+          endTime: result.saleConfig.endTime.toString(),
+          currentTime: Math.floor(Date.now() / 1000),
+        });
 
-          // Calculate total sold (maxSupply - remaining tokens in sale contract)
-          const saleBalance = await tokenContract.read.balanceOf([saleContract.address]);
-          const totalSold = maxSupply - saleBalance;
-
-          return {
-            tokenAddress,
-            treasury,
-            tokenPrice: tokenPrice.toString(),
-            minPurchase: minPurchase.toString(),
-            maxPurchase: maxPurchase.toString(),
-            maxSupply: maxSupply.toString(),
-            startTime: Number(startTime),
-            endTime: Number(endTime),
-            isPaused: Boolean(isPaused),
-            isActive: Boolean(isActive),
-            totalSold: totalSold.toString(),
-            claimEnabled: Boolean(claimEnabled),
-            claimStartTime: Number(claimStartTime),
-          };
-        } catch (contractError) {
-          console.error('Both API and contract calls failed:', contractError);
-          throw contractError;
-        }
+        return result;
+      } catch (contractError) {
+        console.error('Contract calls failed:', contractError);
+        throw contractError;
       }
     },
     staleTime: 30 * 1000, // 30 seconds
-    cacheTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error) => {
       // Don't retry on network/RPC errors that won't resolve
       if (error?.message?.includes('could not detect network') || 

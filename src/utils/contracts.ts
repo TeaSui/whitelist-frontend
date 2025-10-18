@@ -74,20 +74,27 @@ export interface WhitelistStatus {
   addedAt: Date | null;
 }
 
+export interface SaleConfig {
+  tokenPrice: bigint;
+  minPurchase: bigint;
+  maxPurchase: bigint;
+  maxSupply: bigint;
+  startTime: bigint;
+  endTime: bigint;
+  whitelistRequired: boolean;
+}
+
 export interface SaleInfo {
+  contractAddress: string;
   tokenAddress: string;
   treasury: string;
-  tokenPrice: string;
-  minPurchase: string;
-  maxPurchase: string;
-  maxSupply: string;
-  startTime: number;
-  endTime: number;
+  saleConfig: SaleConfig;
+  totalSold: bigint;
+  totalEthRaised: bigint;
   isPaused: boolean;
-  isActive: boolean;
-  totalSold: string;
+  isSaleActive: boolean;
   claimEnabled: boolean;
-  claimStartTime: number;
+  claimStartTime: bigint;
 }
 
 export interface PurchaseInfo {

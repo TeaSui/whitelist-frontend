@@ -56,11 +56,11 @@ const Home: NextPage = () => {
   const stats = [
     {
       label: 'Token Price',
-      value: saleInfo ? `${formatEther(saleInfo.tokenPrice)} ETH` : '--',
+      value: saleInfo ? `${formatEther(saleInfo.saleConfig.tokenPrice)} ETH` : '--',
     },
     {
       label: 'Total Supply',
-      value: saleInfo ? formatNumber(formatEther(saleInfo.maxSupply)) : '--',
+      value: saleInfo ? formatNumber(formatEther(saleInfo.saleConfig.maxSupply)) : '--',
     },
     {
       label: 'Tokens Sold',
@@ -69,7 +69,7 @@ const Home: NextPage = () => {
     {
       label: 'Progress',
       value: saleInfo 
-        ? `${((Number(formatEther(saleInfo.totalSold)) / Number(formatEther(saleInfo.maxSupply))) * 100).toFixed(1)}%`
+        ? `${((Number(formatEther(saleInfo.totalSold)) / Number(formatEther(saleInfo.saleConfig.maxSupply))) * 100).toFixed(1)}%`
         : '--',
     },
   ];

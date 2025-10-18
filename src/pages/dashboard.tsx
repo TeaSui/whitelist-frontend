@@ -12,6 +12,8 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
+import { TokenPurchaseForm } from '@/components/TokenPurchaseForm';
+import { ClaimTokensForm } from '@/components/ClaimTokensForm';
 import { useSaleInfo } from '@/hooks/useSaleInfo';
 import { useWhitelistStatus } from '@/hooks/useWhitelistStatus';
 import { useUserPurchases } from '@/hooks/useUserPurchases';
@@ -143,11 +145,11 @@ const Dashboard: NextPage = () => {
                 </div>
               ) : saleInfo ? (
                 <div className="space-y-2 text-sm text-gray-600">
-                  <div>Token Price: {formatEther(saleInfo.tokenPrice)} ETH</div>
-                  <div>Total Supply: {formatNumber(formatEther(saleInfo.maxSupply))} WLT</div>
+                  <div>Token Price: {formatEther(saleInfo.saleConfig.tokenPrice)} ETH</div>
+                  <div>Total Supply: {formatNumber(formatEther(saleInfo.saleConfig.maxSupply))} WLT</div>
                   <div>Tokens Sold: {formatNumber(formatEther(saleInfo.totalSold))} WLT</div>
                   <div>
-                    Progress: {((Number(formatEther(saleInfo.totalSold)) / Number(formatEther(saleInfo.maxSupply))) * 100).toFixed(1)}%
+                    Progress: {((Number(formatEther(saleInfo.totalSold)) / Number(formatEther(saleInfo.saleConfig.maxSupply))) * 100).toFixed(1)}%
                   </div>
                 </div>
               ) : (
@@ -156,23 +158,37 @@ const Dashboard: NextPage = () => {
             </Card>
           </div>
 
-          {/* Action Buttons */}
+          {/* Claim Tokens Form - Show first if there are tokens to claim */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="mt-8"
+          >
+            <ClaimTokensForm 
+              onSuccess={(txHash) => {
+                console.log('Claim successful:', txHash);
+                // Refresh data after successful claim
+                window.location.reload();
+              }}
+            />
+          </motion.div>
+
+          {/* Token Purchase Form */}
           {whitelistStatus?.isWhitelisted && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
               className="mt-8"
             >
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Purchase Tokens</h2>
-                <p className="text-gray-600 mb-4">
-                  You are whitelisted and can purchase tokens. Current balance: {formatNumber(formatEther(whitelistStatus.tokenBalance))} WLT.
-                </p>
-                <Button className="w-full sm:w-auto">
-                  Buy Tokens
-                </Button>
-              </Card>
+              <TokenPurchaseForm 
+                onSuccess={(txHash) => {
+                  console.log('Purchase successful:', txHash);
+                  // Refresh data after successful purchase
+                  window.location.reload();
+                }}
+              />
             </motion.div>
           )}
 

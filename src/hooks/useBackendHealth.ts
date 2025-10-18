@@ -21,12 +21,12 @@ export const useBackendHealth = () => {
           status: 'unhealthy',
           service: 'whitelist-token-backend',
           version: 'unknown',
-          error: error.message,
+          error: (error as Error).message,
         };
       }
     },
     staleTime: 30 * 1000, // 30 seconds
-    cacheTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 2 * 60 * 1000, // 2 minutes
     retry: (failureCount, error) => {
       // Only retry network errors, not API errors
       return failureCount < 2;

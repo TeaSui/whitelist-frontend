@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { usePublicClient } from 'wagmi';
-import { createWhitelistTokenContract, WhitelistStatus } from '@/utils/contracts';
+import { createWhitelistTokenContract, createWhitelistSaleContract, WhitelistStatus } from '@/utils/contracts';
 import { getWhitelistStatus } from '@/lib/api';
 
 export const useWhitelistStatus = (address?: string) => {
@@ -22,7 +22,7 @@ export const useWhitelistStatus = (address?: string) => {
           try {
             const contract = createWhitelistTokenContract(publicClient);
             const balance = await contract.read.balanceOf([address as `0x${string}`]);
-            tokenBalance = balance.toString();
+            tokenBalance = (balance as bigint).toString();
           } catch (contractError) {
             console.warn('Failed to get token balance from contract:', contractError);
           }
@@ -43,18 +43,19 @@ export const useWhitelistStatus = (address?: string) => {
         }
 
         try {
-          const contract = createWhitelistTokenContract(publicClient);
+          const tokenContract = createWhitelistTokenContract(publicClient);
+          const saleContract = createWhitelistSaleContract(publicClient);
           
           // Call contract methods in parallel for better performance
           const [isWhitelisted, tokenBalance] = await Promise.all([
-            contract.read.whitelist([address as `0x${string}`]),
-            contract.read.balanceOf([address as `0x${string}`])
+            saleContract.read.whitelist([address as `0x${string}`]), // Check simple whitelist in sale contract
+            tokenContract.read.balanceOf([address as `0x${string}`])
           ]);
 
           return {
             address,
             isWhitelisted: Boolean(isWhitelisted),
-            tokenBalance: tokenBalance.toString(),
+            tokenBalance: (tokenBalance as bigint).toString(),
             addedAt: isWhitelisted ? new Date() : null,
           };
         } catch (contractError) {
@@ -65,7 +66,7 @@ export const useWhitelistStatus = (address?: string) => {
     },
     enabled: !!address,
     staleTime: 30 * 1000, // 30 seconds
-    cacheTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error) => {
       // Don't retry on validation errors
       if (error?.message?.includes('Invalid Ethereum address')) {
